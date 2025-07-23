@@ -8,3 +8,7 @@ jupyter
 
 # For managing environment variables
 python-dotenv
+
+# extract text from PDFs
+python-multipart
+pymupdf
