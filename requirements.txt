@@ -1,0 +1,10 @@
+# Core libraries for the RAG pipeline
+supabase
+sentence-transformers
+langchain
+
+# For running the notebook environment
+jupyter
+
+# For managing environment variables
+python-dotenv
