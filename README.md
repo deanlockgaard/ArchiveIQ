@@ -1,6 +1,6 @@
 # ArchiveIQ
 
-**ArchiveIQ** is a semantic document search system that allows users to upload documents and ask natural language questions about their contents. It uses a Retrieval-Augmented Generation (RAG) pipeline built on a lightweight, modern stack designed for low-cost, low-maintenance deployment.
+**ArchiveIQ** is an AI-powered semantic document search system that allows users to upload documents and ask natural language questions about their contents. It uses a Retrieval-Augmented Generation (RAG) pipeline built on a lightweight, modern stack designed for low-cost, low-maintenance deployment.
 
 ---
 
