@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArchiveIQ</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 20px; }
+        .results { margin-top: 20px; border-top: 1px solid #ccc; padding-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>ArchiveIQ</h1>
+
+    <h2>Upload a Document</h2>
+    <form hx-post="/upload" hx-target="#upload-status" hx-encoding="multipart/form-data">
+        <input type="file" name="file">
+        <button type="submit">Upload</button>
+    </form>
+    <div id="upload-status"></div>
+
+    <h2 style="margin-top: 40px;">Search Documents</h2>
+    <form hx-post="/search" hx-target="#results">
+        <input type="text" name="query" size="50">
+        <button type="submit">Search</button>
+    </form>
+
+    <div id="results" class="results">
+        </div>
+</body>
+</html>
