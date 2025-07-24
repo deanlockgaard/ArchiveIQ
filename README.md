@@ -20,8 +20,9 @@
 - **Backend**: Python + Jupyter Notebook for orchestration
 - **Embedding Model**: `mixedbread-ai/mxbai-embed-large-v1` via `sentence-transformers`
 - **Database**: Supabase Postgres with `pgvector`
-- **Authentication (optional)**: Supabase Auth (future integration)
-- **File Storage (optional)**: Supabase Storage (future integration)
+- **Authentication**: Supabase Auth
+- **File Storage**: Supabase Storage
+- **Frontend**: HTMX, Jinja2, FastAPI, Uvicorn
 
 ---
 
@@ -40,38 +41,76 @@ cd archiveiq
 - In the **SQL Editor**, run the following SQL:
 
 ```sql
-create extension vector;
+CREATE EXTENSION IF NOT EXISTS vector;
 
-create table documents (
-  id bigserial primary key,
-  content text,
-  embedding vector(1024)
+-- Create the documents table
+CREATE TABLE IF NOT EXISTS documents (
+    id BIGSERIAL PRIMARY KEY,
+    content TEXT NOT NULL,
+    embedding vector(1024) NOT NULL,
+    user_id UUID REFERENCES auth.users(id),
+    filename TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Create an index for faster vector similarity searches
+CREATE INDEX IF NOT EXISTS documents_embedding_idx
+ON documents
+USING ivfflat (embedding vector_cosine_ops)
+WITH (lists = 100);
+
+-- Create an index on user_id for faster filtering
+CREATE INDEX IF NOT EXISTS idx_documents_user_id
+ON documents(user_id);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies
+-- Policy: Users can only see their own documents
+CREATE POLICY "Users can view own documents"
+ON documents
+FOR SELECT
+USING (auth.uid() = user_id);
+
+-- Policy: Users can only insert their own documents
+CREATE POLICY "Users can insert own documents"
+ON documents
+FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+
+-- Policy: Users can only delete their own documents
+CREATE POLICY "Users can delete own documents"
+ON documents
+FOR DELETE
+USING (auth.uid() = user_id);
 ```
 
 - Create the RPC function for vector search:
 
 ```sql
-create or replace function match_documents (
+CREATE OR REPLACE FUNCTION match_documents (
   query_embedding vector(1024),
   match_threshold float,
-  match_count int
+  match_count int,
+  filter_user_id uuid
 )
-returns table (
+RETURNS TABLE (
   id bigint,
   content text,
   similarity float
 )
-language sql stable
-as $$
-  select
+LANGUAGE sql stable
+AS $$
+  SELECT
     documents.id,
     documents.content,
     1 - (documents.embedding <=> query_embedding) as similarity
-  from documents
-  where 1 - (documents.embedding <=> query_embedding) > match_threshold
-  order by similarity desc
-  limit match_count;
+  FROM documents
+  WHERE documents.user_id = filter_user_id
+    AND 1 - (documents.embedding <=> query_embedding) > match_threshold
+  ORDER BY documents.embedding <=> query_embedding
+  LIMIT match_count;
 $$;
 ```
 
@@ -91,7 +130,7 @@ SUPABASE_KEY="YOUR_SUPABASE_SERVICE_ROLE_KEY"
 ```bash
 python -m venv venv
 source venv/bin/activate
-pip install jupyter supabase sentence-transformers python-dotenv langchain
+pip install -r requirements.txt
 ```
 
 ---
@@ -123,11 +162,70 @@ Follow the cell-by-cell instructions to:
 
 ## 📌 Roadmap
 
-- [ ] Add file upload UI (PDF/DOCX support)
-- [ ] Integrate Supabase Auth for multi-user access
-- [ ] Convert pipeline into a FastAPI or Flask backend
-- [ ] Add frontend UI with HTMX or Streamlit
-- [ ] Extend with LLM-based answer synthesis
+#### Phase 1: Critical Fixes & Core Improvements
+
+- [ ] Fix authentication flow - Resolve HTMX bearer token issues
+- [ ] Add comprehensive error handling - Better user feedback for failures
+- [ ] Implement document management - View, delete, and organize uploaded documents
+- [ ] Add upload progress indicators - Show real-time upload status
+- [ ] Display document metadata - Show filename, upload date, chunk count in search results
+
+#### Phase 2: Search Enhancement
+
+- [ ] Implement hybrid search - Combine semantic + keyword search (BM25)
+- [ ] Add search filters - Filter by date, filename, document type
+- [ ] Implement search result highlighting - Highlight matching terms in context
+- [ ] Add pagination - Handle large result sets efficiently
+- [ ] Create search history - Track and reuse previous searches
+
+#### Phase 3: Performance & Scalability
+
+- [ ] Implement chunk caching - Cache frequently accessed embeddings
+- [ ] Add background job processing - Queue large document uploads
+- [ ] Optimize chunk size dynamically - Adjust based on document type
+- [ ] Implement batch document upload - Process multiple files at once
+- [ ] Add database connection pooling - Improve concurrent user handling
+
+#### Phase 4: LLM Integration
+
+- [ ] Extend with LLM-based answer synthesis - Generate comprehensive answers from retrieved chunks
+- [ ] Implement query refinement - Use LLM to improve search queries
+- [ ] Add conversational search - Multi-turn Q&A with context
+- [ ] Create document summarization - Generate summaries of uploaded documents
+- [ ] Implement smart chunk reranking - Use LLM to reorder results by relevance
+
+#### Phase 5: Advanced Features
+
+- [ ] Add OCR support - Extract text from scanned PDFs and images
+- [ ] Support multiple file formats - DOCX, TXT, HTML, Markdown
+- [ ] Implement semantic document clustering - Group similar documents
+- [ ] Add collaborative features - Share documents/searches with team members
+- [ ] Create export functionality - Export search results and summaries
+
+#### Phase 6: UI/UX Enhancement
+
+- [ ]  Build proper React/Vue frontend - Replace HTMX for richer interactions
+- [ ] Add dark mode - User preference support
+- [ ] Implement drag-and-drop upload - Better file upload UX
+- [ ] Create dashboard with analytics - Usage stats, popular searches
+- [ ] Add mobile-responsive design - Optimize for all devices
+
+#### Phase 7: Enterprise Features
+
+- [ ] Implement folder/project organization - Hierarchical document structure
+- [ ] Add advanced access controls - Team roles and permissions
+- [ ] Create API endpoints - Allow programmatic access
+- [ ] Add audit logging - Track all user actions
+- [ ] Implement data retention policies - Automatic document expiration
+
+#### Phase 8: AI Enhancement
+
+- [ ] Add cross-document analysis - Find relationships between documents
+- [ ] Implement citation generation - Auto-generate citations from sources
+- [ ] Create knowledge graph visualization - Visual document relationships
+- [ ] Add multilingual support - Search across languages
+- [ ] Implement continuous learning - Improve search based on user feedback
+
 
 ---
 
