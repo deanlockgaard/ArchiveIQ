@@ -4,29 +4,160 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ArchiveIQ</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
         body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 20px; }
-        .results { margin-top: 20px; border-top: 1px solid #ccc; padding-top: 20px; }
+        #app-content { margin-top: 20px; border-top: 1px solid #ccc; padding-top: 20px; }
+        /* Basic styling for the auth form */
+        #auth-container form { display: flex; flex-direction: column; gap: 10px; max-width: 400px; }
+        #auth-container input { padding: 8px; }
+        #auth-container button { padding: 10px; cursor: pointer; }
+        .results { margin-top: 20px; }
+        .results div { margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px; }
+        #upload-status { margin-top: 10px; }
+        .error { color: red; }
+        .success { color: green; }
     </style>
 </head>
 <body>
-    <h1>ArchiveIQ</h1>
+    <div id="auth-container">
+        <h3>Login or Sign Up</h3>
+        <form id="login-form">
+            <input type="email" id="email" placeholder="Enter your email" required />
+            <button type="submit">Send Magic Link</button>
+        </form>
+        <p id="auth-message"></p>
+    </div>
 
-    <h2>Upload a Document</h2>
-    <form hx-post="/upload" hx-target="#upload-status" hx-encoding="multipart/form-data">
-        <input type="file" name="file">
-        <button type="submit">Upload</button>
-    </form>
-    <div id="upload-status"></div>
+    <div id="app-content" style="display: none;">
+        <h1>ArchiveIQ</h1>
+        <button id="logout-button">Logout</button>
+        <hr>
 
-    <h2 style="margin-top: 40px;">Search Documents</h2>
-    <form hx-post="/search" hx-target="#results">
-        <input type="text" name="query" size="50">
-        <button type="submit">Search</button>
-    </form>
+        <h2>Upload a Document</h2>
+        <form id="upload-form">
+            <input type="file" name="file" accept=".pdf" required>
+            <button type="submit">Upload</button>
+        </form>
+        <div id="upload-status"></div>
 
-    <div id="results" class="results">
-        </div>
+        <h2 style="margin-top: 40px;">Search Documents</h2>
+        <form id="search-form">
+            <input type="text" name="query" size="50" placeholder="Enter your search query" required>
+            <button type="submit">Search</button>
+        </form>
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://yfvxujvtckizxrnvmhgd.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlmdnh1anZ0Y2tpenhybnZtaGdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMDEwMTQsImV4cCI6MjA2ODg3NzAxNH0.Jt_rlQR7w6vxi8-6FCep3AwrNSxkdMfxxDmBtqhoVss';
+
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const authContainer = document.getElementById('auth-container');
+        const appContent = document.getElementById('app-content');
+        const logoutButton = document.getElementById('logout-button');
+        const loginForm = document.getElementById('login-form');
+        const emailInput = document.getElementById('email');
+        const authMessage = document.getElementById('auth-message');
+        const uploadForm = document.getElementById('upload-form');
+        const searchForm = document.getElementById('search-form');
+
+        // Function to update UI based on auth state
+        function updateUI(session) {
+            const isLoggedIn = session && session.user;
+
+            if (isLoggedIn) {
+                authContainer.style.display = 'none';
+                appContent.style.display = 'block';
+
+                // Configure HTMX to include auth headers
+                htmx.on('htmx:configRequest', (event) => {
+                    event.detail.headers['Authorization'] = `Bearer ${session.access_token}`;
+                });
+
+                // Add HTMX attributes dynamically when user is logged in
+                uploadForm.setAttribute('hx-post', '/upload');
+                uploadForm.setAttribute('hx-target', '#upload-status');
+                uploadForm.setAttribute('hx-encoding', 'multipart/form-data');
+
+                searchForm.setAttribute('hx-post', '/search');
+                searchForm.setAttribute('hx-target', '#results');
+
+                // Process the forms with HTMX
+                htmx.process(uploadForm);
+                htmx.process(searchForm);
+            } else {
+                authContainer.style.display = 'block';
+                appContent.style.display = 'none';
+
+                // Remove HTMX attributes when logged out
+                uploadForm.removeAttribute('hx-post');
+                uploadForm.removeAttribute('hx-target');
+                uploadForm.removeAttribute('hx-encoding');
+
+                searchForm.removeAttribute('hx-post');
+                searchForm.removeAttribute('hx-target');
+            }
+        }
+
+        // Handle Magic Link Login
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = emailInput.value;
+            authMessage.textContent = 'Sending magic link...';
+            authMessage.className = '';
+
+            const { error } = await supabaseClient.auth.signInWithOtp({
+                email,
+                options: {
+                    emailRedirectTo: window.location.origin
+                }
+            });
+
+            if (error) {
+                authMessage.textContent = `Error: ${error.message}`;
+                authMessage.className = 'error';
+            } else {
+                authMessage.textContent = 'Check your email for the magic link!';
+                authMessage.className = 'success';
+                emailInput.value = '';
+            }
+        });
+
+        // Handle Logout
+        logoutButton.addEventListener('click', async () => {
+            await supabaseClient.auth.signOut();
+            document.getElementById('upload-status').innerHTML = '';
+            document.getElementById('results').innerHTML = '';
+            authMessage.textContent = '';
+            authMessage.className = '';
+        });
+
+        // Check for session changes
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            console.log('Auth state changed:', event, session ? 'Logged in' : 'Logged out');
+            updateUI(session);
+        });
+
+        // Check initial session state
+        window.addEventListener('load', async () => {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            console.log('Initial session check:', session ? 'Logged in' : 'Logged out');
+            updateUI(session);
+        });
+
+        // Add event listeners for better error handling
+        document.addEventListener('htmx:responseError', (event) => {
+            console.error('HTMX error:', event.detail);
+            if (event.detail.xhr.status === 401) {
+                alert('Session expired. Please log in again.');
+                supabaseClient.auth.signOut();
+            }
+        });
+    </script>
 </body>
 </html>

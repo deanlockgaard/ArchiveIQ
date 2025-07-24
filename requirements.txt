@@ -1,14 +1,20 @@
-# Core libraries for the RAG pipeline
-supabase
-sentence-transformers
-langchain
+# Web framework, server, and templating
+fastapi[all]==0.111.0
+jinja2==3.1.4
+python-multipart==0.0.9
 
-# For running the notebook environment
-jupyter
+# Authentication (JWT handling)
+python-jose[cryptography]==3.3.0
 
-# For managing environment variables
-python-dotenv
+# AI and Data Processing
+sentence-transformers==3.0.1
+langchain==0.2.11
+langchain-community==0.2.10
+pymupdf==1.24.7
 
-# extract text from PDFs
-python-multipart
-pymupdf
+# Database Client
+supabase==2.5.1
+
+# Development & Utilities
+jupyter==1.0.0
+python-dotenv==1.0.1
