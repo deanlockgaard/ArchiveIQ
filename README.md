@@ -237,6 +237,6 @@ MIT License. See `LICENSE` file for details.
 
 ## 🧠 Credits
 
-- Developed by Dean Lockgaard
+- Created by Dean Lockgaard
 - Embedding model: [`mixedbread-ai/mxbai-embed-large-v1`](https://huggingface.co/mixedbread-ai/mxbai-embed-large-v1)
 - Vector DB: [Supabase](https://supabase.io) + [pgvector](https://github.com/pgvector/pgvector)
